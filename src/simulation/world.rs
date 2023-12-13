@@ -2,7 +2,7 @@ use std::{iter, fs, io, io::Write};
 use super::*;
 
 pub struct World {
-    particles: Vec<Particle>,
+    pub particles: Vec<Particle>,
     pub gravity_strength: f64,
     pub softening_length: f64,
 }
@@ -48,10 +48,4 @@ impl World {
         }
     }
 
-    pub fn write_to_file(&self, file: &mut fs::File) -> io::Result<()> {
-        for particle in &self.particles {
-            writeln!(file, "{} {}", particle.position.x, particle.position.y)?;
-        }
-        Ok(())
-    }
 }

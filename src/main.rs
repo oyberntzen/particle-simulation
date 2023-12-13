@@ -1,5 +1,3 @@
-use std::fs;
-
 mod simulation;
 
 pub fn main() {
@@ -7,10 +5,14 @@ pub fn main() {
     world.add_particle(simulation::Particle { mass: 1.0, position: simulation::Vector2 { x: -1.0, y: 0.0 }, velocity: simulation::Vector2 { x: 0.0, y: 0.0 } });
     world.add_particle(simulation::Particle { mass: 1.0, position: simulation::Vector2 { x: 1.0, y: 0.0 }, velocity: simulation::Vector2 { x: 0.0, y: 0.0 } });
 
-    let mut file = fs::File::create("data/frames/simulation1.sim").unwrap();
 
-    for _ in 0..1000000 {
-        world.update(0.1);
-        let _ = world.write_to_file(&mut file);
+    let mut renderer = simulation::Renderer::new(500, 500);
+    let camera = simulation::Camera{position: simulation::Vector2 { x: 0.0, y: 0.0 }, zoom: 0.0};
+
+    let frames = 1000;
+    for i in 0..frames {
+        world.update(1.0/30.0);
+        renderer.render(&world, &camera, i);
+        println!("{}/{} frames completed", i+1, frames)
     }
 }
