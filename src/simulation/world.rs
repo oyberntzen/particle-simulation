@@ -1,5 +1,5 @@
-use std::{iter, fs, io, io::Write};
 use super::*;
+use std::iter;
 
 pub struct World {
     pub particles: Vec<Particle>,
@@ -21,7 +21,7 @@ impl World {
     }
 
     pub fn calculate_gravity(&self, position: Vector2) -> Vector2 {
-        let mut gravity = Vector2{x: 0.0, y: 0.0};
+        let mut gravity = Vector2 { x: 0.0, y: 0.0 };
         for particle in &self.particles {
             if particle.position.x == position.x && particle.position.y == position.y {
                 continue;
@@ -29,7 +29,8 @@ impl World {
             let difference = particle.position - position;
             let distance = difference.abs();
             let direction = difference / distance;
-            let magnitude = self.gravity_strength * particle.mass / (distance*distance + self.softening_length*self.softening_length);
+            let magnitude = self.gravity_strength * particle.mass
+                / (distance * distance + self.softening_length * self.softening_length);
             gravity += direction * magnitude;
         }
         gravity
@@ -43,9 +44,8 @@ impl World {
             forces.push(force)
         }
 
-        for (particle, force)  in iter::zip(&mut self.particles, forces) {
+        for (particle, force) in iter::zip(&mut self.particles, forces) {
             particle.update(delta_time, force);
         }
     }
-
 }

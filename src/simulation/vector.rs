@@ -1,4 +1,4 @@
-use std::{ops, fmt};
+use std::{fmt, ops};
 
 #[derive(Clone, Copy)]
 pub struct Vector2 {
@@ -8,7 +8,7 @@ pub struct Vector2 {
 
 impl Vector2 {
     pub fn abs(&self) -> f64 {
-        (self.x*self.x + self.y*self.y).sqrt()
+        (self.x * self.x + self.y * self.y).sqrt()
     }
 }
 
@@ -18,7 +18,7 @@ impl ops::Add<Vector2> for Vector2 {
     fn add(self, rhs: Self) -> Self::Output {
         Self {
             x: self.x + rhs.x,
-            y: self.y + rhs.y
+            y: self.y + rhs.y,
         }
     }
 }
@@ -54,7 +54,7 @@ impl ops::Mul<f64> for Vector2 {
     fn mul(self, rhs: f64) -> Self::Output {
         Self {
             x: self.x * rhs,
-            y: self.y * rhs
+            y: self.y * rhs,
         }
     }
 }
@@ -72,7 +72,7 @@ impl ops::Div<f64> for Vector2 {
     fn div(self, rhs: f64) -> Self::Output {
         Self {
             x: self.x / rhs,
-            y: self.y / rhs
+            y: self.y / rhs,
         }
     }
 }

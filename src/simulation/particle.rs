@@ -3,7 +3,7 @@ use super::*;
 pub struct Particle {
     pub mass: f64,
     pub position: Vector2,
-    pub velocity: Vector2
+    pub velocity: Vector2,
 }
 
 impl Particle {
