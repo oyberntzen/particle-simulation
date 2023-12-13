@@ -35,10 +35,10 @@ class Renderer:
         for particle in world.particles:
             pos = self.vector_world_to_screen(particle.pos)
             radius = max(self.size_world_to_screen(self.particle_size*math.sqrt(particle.mass)), 1)
-            pygame.draw.circle(self.screen, (255, 255, 255), (pos.x, pos.y), radius)
+            color = (particle.color[0]*255, particle.color[1]*255, particle.color[2]*255)
+            pygame.draw.circle(self.screen, color, (pos.x, pos.y), radius)
         pygame.display.update()
         self.clock.tick(self.fps)
-        
 
     def vector_world_to_screen(self, pos):
         #print(pos)

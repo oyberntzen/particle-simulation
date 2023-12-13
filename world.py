@@ -1,5 +1,6 @@
 from particle import Particle
 from vector import Vector2
+import math
 
 class World:
     def __init__(self):
@@ -31,3 +32,21 @@ class World:
             forces.append(force)
 
         return forces
+
+    def set_circle_speed(self, center):
+        forces = self.calculate_gravity()
+
+        for particle, force in zip(self.particles, forces):
+            acceleration = force / particle.mass
+            velocity = math.sqrt(abs(acceleration) * abs(particle.pos - center))
+            vector_to_center = (center - particle.pos) / abs(center - particle.pos)
+            velocity_vector = Vector2(-vector_to_center.y, vector_to_center.x) * velocity
+            particle.vel = velocity_vector
+
+
+    def merge_with(self, other, position, velocity):
+        for particle in other.particles:
+            particle.pos += position
+            particle.vel += velocity
+            self.particles.append(particle)
+
