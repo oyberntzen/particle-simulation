@@ -1,7 +1,7 @@
 mod simulation;
 
 pub fn main() {
-    let mut world = simulation::World::new();
+    /*let mut world = simulation::World::new();
     world.add_particle(simulation::Particle {
         mass: 1.0,
         position: simulation::Vector2 { x: -1.0, y: 0.0 },
@@ -11,7 +11,8 @@ pub fn main() {
         mass: 1.0,
         position: simulation::Vector2 { x: 1.0, y: 0.0 },
         velocity: simulation::Vector2 { x: 0.0, y: 0.0 },
-    });
+    });*/
+    let mut world = simulation::World::new_galaxy(3000, 1.0, 0.5);
 
     let mut renderer = simulation::Renderer::new(500, 500);
     let camera = simulation::Camera {
@@ -19,7 +20,7 @@ pub fn main() {
         zoom: 0.0,
     };
 
-    let frames = 1000;
+    let frames = 500;
     for i in 0..frames {
         world.update(1.0 / 30.0);
         renderer.render(&world, &camera, i);

@@ -1,5 +1,8 @@
+use rand::Rng;
+
 use super::*;
-use std::iter;
+use std::{iter, vec};
+
 
 pub struct World {
     pub particles: Vec<Particle>,
@@ -14,6 +17,43 @@ impl World {
             gravity_strength: 0.1,
             softening_length: 0.1,
         }
+    }
+
+    pub fn new_galaxy(num_particles: u32, radius: f64, mass: f64) -> Self {
+        let mut world = Self::new();
+        world.gravity_strength = 0.1;
+
+        let mut rng = rand::thread_rng();
+        for _ in 0..num_particles {
+            let distance = rng.gen::<f64>() * radius + radius*0.02; 
+            let angle = rng.gen::<f64>() * 2.0*std::f64::consts::PI;
+            let position = Vector2{x: distance*angle.cos(), y: distance*angle.sin()};
+            world.add_particle(Particle { mass: mass / num_particles as f64 / 2.0, position: position, velocity: Vector2 { x: 0.0, y: 0.0 } });
+        }
+
+        world.add_particle(Particle { mass: mass/2.0, position: Vector2 {x:0.0, y:0.0}, velocity: Vector2 { x: 0.0, y: 0.0 } });
+
+
+        let mut start_velocities: Vec<Vector2> = vec![];
+        for particle in &world.particles {
+            if particle.position.x == 0.0 && particle.position.y == 0.0 {
+                continue;
+            }
+            let acceleration = world.calculate_gravity(particle.position);
+            let velocity = (acceleration.abs() * particle.position.abs()).sqrt();
+
+            let vector_to_center = (-particle.position) / particle.position.abs();
+            let velocity_vector = Vector2{x: vector_to_center.y, y: -vector_to_center.x} * velocity;
+            //println!("{} {} {} {}", velocity, particle.position, vector_to_center, velocity_vector);
+
+            start_velocities.push(velocity_vector);
+        }
+
+        for (particle, velocity) in iter::zip(&mut world.particles, start_velocities) {
+            particle.velocity = velocity;
+        }
+
+        world
     }
 
     pub fn add_particle(&mut self, particle: Particle) {
