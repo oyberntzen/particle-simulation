@@ -1,5 +1,6 @@
 use super::*;
 
+#[derive(Clone)]
 pub struct Particle {
     pub mass: f64,
     pub position: Vector2,

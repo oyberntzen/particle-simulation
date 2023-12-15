@@ -90,7 +90,7 @@ impl ops::Neg for Vector2 {
     fn neg(self) -> Self::Output {
         Self {
             x: -self.x,
-            y: -self.y
+            y: -self.y,
         }
     }
 }
@@ -100,4 +100,3 @@ impl fmt::Display for Vector2 {
         write!(f, "[{}, {}]", self.x, self.y)
     }
 }
-
