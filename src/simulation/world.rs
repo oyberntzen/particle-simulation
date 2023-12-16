@@ -164,4 +164,22 @@ impl World {
             particle.update(delta_time, force);
         }
     }
+
+    pub fn add_position(&mut self, position: Vector2) {
+        for particle in &mut self.particles {
+            particle.position += position;
+        }
+    }
+
+    pub fn add_velocity(&mut self, velocity: Vector2) {
+        for particle in &mut self.particles {
+            particle.velocity += velocity;
+        }
+    }
+
+    pub fn add_world(&mut self, other: &Self) {
+        for particle in &other.particles {
+            self.add_particle(particle.clone());
+        }
+    }
 }
