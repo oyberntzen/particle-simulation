@@ -34,8 +34,13 @@ impl Renderer {
             }
             let x = screen_pos.x as u32;
             let y = screen_pos.y as u32;
-            self.buffer
-                .put_pixel(x, y, image::Rgb::<u8> { 0: [255; 3] });
+            self.buffer.put_pixel(
+                x,
+                y,
+                image::Rgb::<u8> {
+                    0: [particle.color.0, particle.color.1, particle.color.2],
+                },
+            );
         }
         self.buffer
             .save(format!("result/frames/{:05}.png", frame))

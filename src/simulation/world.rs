@@ -19,7 +19,12 @@ impl World {
         }
     }
 
-    pub fn new_galaxy_black_hole(num_particles: u32, radius: f64, mass: f64) -> Self {
+    pub fn new_galaxy_black_hole(
+        num_particles: u32,
+        radius: f64,
+        mass: f64,
+        color: (u8, u8, u8),
+    ) -> Self {
         let mut world = Self::new();
         world.gravity_strength = 0.1;
 
@@ -33,8 +38,9 @@ impl World {
             };
             world.add_particle(Particle {
                 mass: mass / num_particles as f64 / 2.0,
-                position: position,
+                position,
                 velocity: Vector2 { x: 0.0, y: 0.0 },
+                color,
             });
         }
 
@@ -42,6 +48,7 @@ impl World {
             mass: mass / 2.0,
             position: Vector2 { x: 0.0, y: 0.0 },
             velocity: Vector2 { x: 0.0, y: 0.0 },
+            color,
         });
 
         world.set_circle_speed();
@@ -49,7 +56,7 @@ impl World {
         world
     }
 
-    pub fn new_galaxy(num_particles: u32, radius: f64, mass: f64) -> Self {
+    pub fn new_galaxy(num_particles: u32, radius: f64, mass: f64, color: (u8, u8, u8)) -> Self {
         let mut world = Self::new();
         world.gravity_strength = 0.1;
 
@@ -63,8 +70,9 @@ impl World {
             };
             world.add_particle(Particle {
                 mass: mass / num_particles as f64 / 2.0,
-                position: position,
+                position,
                 velocity: Vector2 { x: 0.0, y: 0.0 },
+                color,
             });
         }
 
