@@ -1,5 +1,3 @@
-use simulation::Vector2;
-
 mod simulation;
 
 pub fn main() {
@@ -14,6 +12,8 @@ pub fn main() {
         position: simulation::Vector2 { x: 1.0, y: 0.0 },
         velocity: simulation::Vector2 { x: 0.0, y: 0.0 },
     });*/
+
+    /*
     let mut world = simulation::World::new_galaxy(10000, 1.0, 0.7, (255, 255, 0));
     world.add_position(Vector2 { x: -1.0, y: -0.6 });
     world.add_velocity(Vector2 { x: 0.2, y: 0.0 });
@@ -35,4 +35,7 @@ pub fn main() {
         renderer.render(&world, &camera, i);
         println!("{}/{} frames completed", i + 1, frames)
     }
+    */
+    let mut world = simulation::World::new_galaxy(1000, 1.0, 0.7, (255, 255, 0));
+    world.update_quadtree(0.1);
 }

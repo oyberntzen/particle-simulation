@@ -1,7 +1,7 @@
 use rand::Rng;
 
 use super::*;
-use std::{iter, sync, thread, vec};
+use std::{iter, sync, thread, time, vec};
 
 #[derive(Clone)]
 pub struct World {
@@ -62,7 +62,7 @@ impl World {
 
         let mut rng = rand::thread_rng();
         for _ in 0..num_particles {
-            let distance = (rng.gen::<f64>() * radius).powi(2);
+            let distance = (rng.gen::<f64>()).powi(2) * radius;
             let angle = rng.gen::<f64>() * 2.0 * std::f64::consts::PI;
             let position = Vector2 {
                 x: distance * angle.cos(),
@@ -125,6 +125,12 @@ impl World {
         gravity
     }
 
+    fn calculate_gravity_quadtree(&self, quadtree: &Quadtree, position: Vector2) -> Vector2 {
+        let mut gravity = Vector2 { x: 0.0, y: 0.0 };
+
+        gravity
+    }
+
     pub fn update(&mut self, delta_time: f64) {
         let mut forces = vec![];
         for particle in &self.particles {
@@ -173,6 +179,39 @@ impl World {
         }
     }
 
+    pub fn update_quadtree(&mut self, delta_time: f64) {
+        let start_time = time::Instant::now();
+
+        let mut min = self.particles[0].position;
+        let mut max = self.particles[0].position;
+        for particle in &self.particles {
+            min.x = min.x.min(particle.position.x);
+            min.y = min.y.min(particle.position.y);
+            max.x = max.x.max(particle.position.x);
+            max.y = max.y.max(particle.position.y);
+        }
+
+        let mut quadtree = Quadtree::new(min, max);
+        for particle in &self.particles {
+            quadtree.insert(particle.position, particle.mass, 0);
+        }
+        //println!("{:?}", quadtree);
+
+        let elapsed_time = start_time.elapsed();
+        println!("Quadtree initialization: {}ms", elapsed_time.as_millis());
+
+        let mut forces = vec![];
+        for particle in &self.particles {
+            let gravity = self.calculate_gravity_quadtree(&quadtree, particle.position);
+            let force = gravity * particle.mass;
+            forces.push(force)
+        }
+
+        for (particle, force) in iter::zip(&mut self.particles, forces) {
+            particle.update(delta_time, force);
+        }
+    }
+
     pub fn add_position(&mut self, position: Vector2) {
         for particle in &mut self.particles {
             particle.position += position;
@@ -190,4 +229,111 @@ impl World {
             self.add_particle(particle.clone());
         }
     }
+}
+
+#[derive(Debug)]
+struct QuadtreeNode {
+    min: Vector2,
+    max: Vector2,
+    children: Option<[usize; 4]>,
+
+    position: Vector2,
+    mass: f64,
+}
+
+impl QuadtreeNode {
+    fn new(min: Vector2, max: Vector2) -> Self {
+        Self {
+            min,
+            max,
+            children: None,
+            position: Vector2 { x: 0.0, y: 0.0 },
+            mass: 0.0,
+        }
+    }
+    fn which_child(&self, vector: Vector2) -> usize {
+        let mut i = 0;
+        if vector.x > (self.min.x + self.max.x) / 2.0 {
+            i += 1;
+        }
+        if vector.y > (self.min.y + self.max.y) / 2.0 {
+            i += 2;
+        }
+        i
+    }
+}
+
+#[derive(Debug)]
+struct Quadtree {
+    nodes: Vec<QuadtreeNode>,
+}
+
+impl Quadtree {
+    fn new(min: Vector2, max: Vector2) -> Self {
+        Self {
+            nodes: vec![QuadtreeNode::new(min, max)],
+        }
+    }
+
+    fn insert(&mut self, position: Vector2, mass: f64, node: usize) {
+        if let Some(children) = self.nodes[node].children {
+            let child = children[self.nodes[node].which_child(position)];
+            self.insert(position, mass, child);
+
+            let mut new_position = Vector2 { x: 0.0, y: 0.0 };
+            let mut new_mass = 0.0;
+            for i in 0..4 {
+                let current_child = &self.nodes[children[i]];
+                new_position += current_child.position * current_child.mass;
+                new_mass += current_child.mass;
+            }
+
+            self.nodes[node].position = new_position / new_mass;
+            self.nodes[node].mass = new_mass;
+        } else {
+            if self.nodes[node].mass > 0.0 {
+                let temp_position = self.nodes[node].position;
+                let temp_mass = self.nodes[node].mass;
+
+                self.add_children(node);
+
+                self.insert(temp_position, temp_mass, node);
+                self.insert(position, mass, node)
+            } else {
+                self.nodes[node].position = position;
+                self.nodes[node].mass = mass;
+            }
+        }
+    }
+
+    fn add_children(&mut self, node: usize) {
+        let mut children = [0usize; 4];
+        for i in 0..4 {
+            children[i] = self.nodes.len();
+            let mut min = self.nodes[node].min;
+            let mut max = self.nodes[node].max;
+            if i % 2 == 0 {
+                max.x = (min.x + max.x) / 2.0;
+            } else {
+                min.x = (min.x + max.x) / 2.0;
+            }
+            if i / 2 == 0 {
+                max.y = (min.y + max.y) / 2.0;
+            } else {
+                min.y = (min.y + max.y) / 2.0;
+            }
+            self.nodes.push(QuadtreeNode::new(min, max));
+        }
+        self.nodes[node].children = Some(children);
+    }
+}
+
+pub fn test_quadtree() {
+    let mut quad_tree = Quadtree::new(Vector2 { x: 0.0, y: 0.0 }, Vector2 { x: 1.0, y: 1.0 });
+
+    quad_tree.insert(Vector2 { x: 0.2, y: 0.2 }, 1.0, 0);
+    quad_tree.insert(Vector2 { x: 0.8, y: 0.8 }, 1.0, 0);
+    quad_tree.insert(Vector2 { x: 0.2, y: 0.8 }, 1.0, 0);
+    quad_tree.insert(Vector2 { x: 0.8, y: 0.2 }, 1.0, 0);
+    println!("{:?}", quad_tree);
 }
