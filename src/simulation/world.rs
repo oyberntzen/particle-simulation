@@ -125,12 +125,6 @@ impl World {
         gravity
     }
 
-    fn calculate_gravity_quadtree(&self, quadtree: &Quadtree, position: Vector2) -> Vector2 {
-        let mut gravity = Vector2 { x: 0.0, y: 0.0 };
-
-        gravity
-    }
-
     pub fn update(&mut self, delta_time: f64) {
         let mut forces = vec![];
         for particle in &self.particles {
@@ -200,12 +194,16 @@ impl World {
         let elapsed_time = start_time.elapsed();
         println!("Quadtree initialization: {}ms", elapsed_time.as_millis());
 
+        let start_time = time::Instant::now();
         let mut forces = vec![];
         for particle in &self.particles {
-            let gravity = self.calculate_gravity_quadtree(&quadtree, particle.position);
+            let gravity = quadtree.calculate_gravity(particle.position, 0, 0.5, self.gravity_strength, self.softening_length);
             let force = gravity * particle.mass;
-            forces.push(force)
+            forces.push(force);
+            //println!("{}", force);
         }
+        let elapsed_time = start_time.elapsed();
+        println!("Force calculation: {}ms", elapsed_time.as_millis());
 
         for (particle, force) in iter::zip(&mut self.particles, forces) {
             particle.update(delta_time, force);
@@ -236,30 +234,47 @@ struct QuadtreeNode {
     min: Vector2,
     max: Vector2,
     children: Option<[usize; 4]>,
+    depth: usize,
 
     position: Vector2,
     mass: f64,
 }
 
 impl QuadtreeNode {
-    fn new(min: Vector2, max: Vector2) -> Self {
+    fn new(min: Vector2, max: Vector2, depth: usize) -> Self {
         Self {
             min,
             max,
             children: None,
             position: Vector2 { x: 0.0, y: 0.0 },
             mass: 0.0,
+            depth,
         }
     }
-    fn which_child(&self, vector: Vector2) -> usize {
+    fn which_child(&self, position: Vector2) -> usize {
         let mut i = 0;
-        if vector.x > (self.min.x + self.max.x) / 2.0 {
+        if position.x > (self.min.x + self.max.x) / 2.0 {
             i += 1;
         }
-        if vector.y > (self.min.y + self.max.y) / 2.0 {
+        if position.y > (self.min.y + self.max.y) / 2.0 {
             i += 2;
         }
         i
+    }
+    fn inside(&self, position: Vector2) -> bool {
+        if position.x < self.min.x {
+            return false;
+        }
+        if position.x > self.max.x {
+            return false;
+        }
+        if position.y < self.min.y {
+            return false;
+        }
+        if position.y > self.max.y {
+            return false;
+        }
+        true
     }
 }
 
@@ -271,7 +286,7 @@ struct Quadtree {
 impl Quadtree {
     fn new(min: Vector2, max: Vector2) -> Self {
         Self {
-            nodes: vec![QuadtreeNode::new(min, max)],
+            nodes: vec![QuadtreeNode::new(min, max, 0)],
         }
     }
 
@@ -292,6 +307,11 @@ impl Quadtree {
             self.nodes[node].mass = new_mass;
         } else {
             if self.nodes[node].mass > 0.0 {
+                if self.nodes[node].depth == 32 {
+                    self.nodes[node].mass += mass;
+                    return
+                }
+
                 let temp_position = self.nodes[node].position;
                 let temp_mass = self.nodes[node].mass;
 
@@ -322,18 +342,58 @@ impl Quadtree {
             } else {
                 min.y = (min.y + max.y) / 2.0;
             }
-            self.nodes.push(QuadtreeNode::new(min, max));
+            self.nodes.push(QuadtreeNode::new(min, max, self.nodes[node].depth+1));
         }
         self.nodes[node].children = Some(children);
+    }
+
+    fn calculate_gravity(&self, position: Vector2, node: usize, accuracy: f64, gravity_strength: f64, softening_length: f64) -> Vector2 {
+        let current_node = &self.nodes[node];
+        let distance = (position - current_node.position).abs().sqrt();
+        let width = current_node.max.x - current_node.min.x;
+        let height = current_node.max.y - current_node.min.y;
+        let size = width.max(height);
+
+        let far_away = size / distance < accuracy;
+        let has_children = current_node.children.is_some();
+        let inside = current_node.inside(position);
+        //println!("{} {} {}", far_away, has_children, inside);
+
+        if inside && !has_children {
+            Vector2 {x: 0.0, y: 0.0}
+        }
+        else if (inside || !far_away) && has_children {
+            // searh children
+            let mut gravity = Vector2 {x: 0.0, y:0.0};
+            for i in 0..4 {
+                gravity += self.calculate_gravity(position, current_node.children.unwrap()[i], accuracy, gravity_strength, softening_length);
+            }
+            gravity
+        }
+        else {
+            /*if has_children {
+                println!("yey");
+            }*/
+
+            let difference = current_node.position - position;
+            let distance = difference.abs();
+            let direction = difference / distance;
+            let magnitude = gravity_strength * current_node.mass
+                / (distance * distance + softening_length * softening_length);
+            let gravity = direction * magnitude;
+            //println!("g: {}", gravity);
+            gravity
+        }
     }
 }
 
 pub fn test_quadtree() {
-    let mut quad_tree = Quadtree::new(Vector2 { x: 0.0, y: 0.0 }, Vector2 { x: 1.0, y: 1.0 });
+    let mut quadtree = Quadtree::new(Vector2 { x: 0.0, y: 0.0 }, Vector2 { x: 1.0, y: 1.0 });
 
-    quad_tree.insert(Vector2 { x: 0.2, y: 0.2 }, 1.0, 0);
-    quad_tree.insert(Vector2 { x: 0.8, y: 0.8 }, 1.0, 0);
-    quad_tree.insert(Vector2 { x: 0.2, y: 0.8 }, 1.0, 0);
-    quad_tree.insert(Vector2 { x: 0.8, y: 0.2 }, 1.0, 0);
-    println!("{:?}", quad_tree);
+    quadtree.insert(Vector2 { x: 0.2, y: 0.2 }, 1.0, 0);
+    quadtree.insert(Vector2 { x: 0.8, y: 0.8 }, 1.0, 0);
+    quadtree.insert(Vector2 { x: 0.2, y: 0.8 }, 1.0, 0);
+    quadtree.insert(Vector2 { x: 0.8, y: 0.2 }, 1.0, 0);
+    quadtree.insert(Vector2 { x: 0.2, y: 0.2 }, 1.0, 0);
+    println!("{:?}", quadtree);
 }
