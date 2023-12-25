@@ -6,28 +6,24 @@ use std::{iter, sync, thread, time, vec};
 #[derive(Clone)]
 pub struct World {
     pub particles: Vec<Particle>,
-    pub gravity_strength: f64,
-    pub softening_length: f64,
+    pub settings: WorldSettings,
 }
 
 impl World {
-    pub fn new() -> Self {
+    pub fn new(settings: WorldSettings) -> Self {
         Self {
             particles: vec![],
-            gravity_strength: 0.1,
-            softening_length: 0.1,
+            settings
         }
     }
 
     pub fn new_galaxy_black_hole(
+        &mut self,
         num_particles: u32,
         radius: f64,
         mass: f64,
         color: (u8, u8, u8),
-    ) -> Self {
-        let mut world = Self::new();
-        world.gravity_strength = 0.1;
-
+    ) {
         let mut rng = rand::thread_rng();
         for _ in 0..num_particles {
             let distance = rng.gen::<f64>() * radius + radius * 0.02;
@@ -36,7 +32,7 @@ impl World {
                 x: distance * angle.cos(),
                 y: distance * angle.sin(),
             };
-            world.add_particle(Particle {
+            self.add_particle(Particle {
                 mass: mass / num_particles as f64 / 2.0,
                 position,
                 velocity: Vector2 { x: 0.0, y: 0.0 },
@@ -44,22 +40,17 @@ impl World {
             });
         }
 
-        world.add_particle(Particle {
+        self.add_particle(Particle {
             mass: mass / 2.0,
             position: Vector2 { x: 0.0, y: 0.0 },
             velocity: Vector2 { x: 0.0, y: 0.0 },
             color,
         });
 
-        world.set_circle_speed();
-
-        world
+        self.set_circle_speed();
     }
 
-    pub fn new_galaxy(num_particles: u32, radius: f64, mass: f64, color: (u8, u8, u8)) -> Self {
-        let mut world = Self::new();
-        world.gravity_strength = 0.1;
-
+    pub fn new_galaxy(&mut self, num_particles: u32, radius: f64, mass: f64, color: (u8, u8, u8)) {
         let mut rng = rand::thread_rng();
         for _ in 0..num_particles {
             let distance = (rng.gen::<f64>()).powi(2) * radius;
@@ -68,7 +59,7 @@ impl World {
                 x: distance * angle.cos(),
                 y: distance * angle.sin(),
             };
-            world.add_particle(Particle {
+            self.add_particle(Particle {
                 mass: mass / num_particles as f64 / 2.0,
                 position,
                 velocity: Vector2 { x: 0.0, y: 0.0 },
@@ -76,18 +67,17 @@ impl World {
             });
         }
 
-        world.set_circle_speed();
-
-        world
+        self.set_circle_speed();
     }
 
     fn set_circle_speed(&mut self) {
+        let forces = self.calculate_forces_auto();
         let mut start_velocities: Vec<Vector2> = vec![];
-        for particle in &self.particles {
+        for (particle, force) in iter::zip(&self.particles, forces) {
             if particle.position.x == 0.0 && particle.position.y == 0.0 {
                 continue;
             }
-            let acceleration = self.calculate_gravity(particle.position);
+            let acceleration = force / particle.mass;
             let velocity = (acceleration.abs() * particle.position.abs()).sqrt();
 
             let vector_to_center = (-particle.position) / particle.position.abs();
@@ -109,7 +99,7 @@ impl World {
         self.particles.push(particle);
     }
 
-    pub fn calculate_gravity(&self, position: Vector2) -> Vector2 {
+    fn calculate_gravity(&self, position: Vector2) -> Vector2 {
         let mut gravity = Vector2 { x: 0.0, y: 0.0 };
         for particle in &self.particles {
             if particle.position.x == position.x && particle.position.y == position.y {
@@ -118,27 +108,33 @@ impl World {
             let difference = particle.position - position;
             let distance = difference.abs();
             let direction = difference / distance;
-            let magnitude = self.gravity_strength * particle.mass
-                / (distance * distance + self.softening_length * self.softening_length);
+            let magnitude = self.settings.gravity_strength * particle.mass
+                / (distance * distance + self.settings.softening_length * self.settings.softening_length);
             gravity += direction * magnitude;
         }
         gravity
     }
 
-    pub fn update(&mut self, delta_time: f64) {
-        let mut forces = vec![];
-        for particle in &self.particles {
-            let gravity = self.calculate_gravity(particle.position);
-            let force = gravity * particle.mass;
-            forces.push(force)
-        }
-
-        for (particle, force) in iter::zip(&mut self.particles, forces) {
-            particle.update(delta_time, force);
+    fn calculate_forces_auto(&self) -> Vec<Vector2> {
+        match (self.settings.multiprocessing, self.settings.quadtree) {
+            (false, false) => self.calculate_forces(),
+            (true, false) => self.calculate_forces_multiprocessing(),
+            (false, true) => self.calculate_forces_quadtree(),
+            (true, true) => self.calculate_forces_multiprocessing_quadtree(),
         }
     }
 
-    pub fn update_multiprocessing(&mut self, delta_time: f64) {
+    fn calculate_forces(&self) -> Vec<Vector2> {
+        let mut forces = vec![];
+        for particle in &self.particles {
+            let gravity = self.calculate_gravity(particle.position); 
+            let force = gravity * particle.mass;
+            forces.push(force);
+        }
+        forces
+    }
+
+    fn calculate_forces_multiprocessing(&self) -> Vec<Vector2> {
         let num_threads = thread::available_parallelism().unwrap().get();
         let mut handles = vec![];
         let particles_per_thread = (self.particles.len() + num_threads - 1) / num_threads;
@@ -167,15 +163,66 @@ impl World {
                 all_forces.push(force);
             }
         }
-
-        for (particle, force) in iter::zip(&mut self.particles, all_forces) {
-            particle.update(delta_time, force);
-        }
+        all_forces
     }
 
-    pub fn update_quadtree(&mut self, delta_time: f64) {
+    fn calculate_forces_quadtree(&self) -> Vec<Vector2> {
         let start_time = time::Instant::now();
+        let quadtree = self.construct_quadtree();
 
+        //println!("{:?}", quadtree);
+
+        let elapsed_time = start_time.elapsed();
+        println!("Quadtree initialization: {}ms", elapsed_time.as_millis());
+
+        let start_time = time::Instant::now();
+        let mut forces = vec![];
+        for particle in &self.particles {
+            let gravity = quadtree.calculate_gravity(particle.position, 0, 0.5, self.settings.gravity_strength, self.settings.softening_length);
+            let force = gravity * particle.mass;
+            forces.push(force);
+            //println!("{}", force);
+        }
+        let elapsed_time = start_time.elapsed();
+        println!("Force calculation: {}ms", elapsed_time.as_millis());
+        forces
+    }
+
+    fn calculate_forces_multiprocessing_quadtree(&self) -> Vec<Vector2> {
+        let num_threads = thread::available_parallelism().unwrap().get();
+        let mut handles = vec![];
+        let particles_per_thread = (self.particles.len() + num_threads - 1) / num_threads;
+        let world = sync::Arc::new(self.clone());
+        let quadtree = sync::Arc::new(self.construct_quadtree());
+        for i in 0..num_threads {
+            let current_world = world.clone();
+            let current_quadtree = quadtree.clone();
+            handles.push(thread::spawn(move || {
+                let mut forces = vec![];
+                for j in i * particles_per_thread..(i + 1) * particles_per_thread {
+                    if j >= current_world.particles.len() {
+                        break;
+                    }
+                    let particle = current_world.particles[j].clone();
+                    let gravity = current_quadtree.calculate_gravity(particle.position, 0, current_world.settings.accuracy, current_world.settings.gravity_strength, current_world.settings.softening_length);
+                    let force = gravity * particle.mass;
+                    forces.push(force);
+                }
+                forces
+            }));
+        }
+
+        let mut all_forces = vec![];
+        for handle in handles {
+            let forces = handle.join().unwrap();
+            for force in forces {
+                all_forces.push(force);
+            }
+        }
+        all_forces
+    }
+
+    fn construct_quadtree(&self) -> Quadtree {
         let mut min = self.particles[0].position;
         let mut max = self.particles[0].position;
         for particle in &self.particles {
@@ -189,21 +236,11 @@ impl World {
         for particle in &self.particles {
             quadtree.insert(particle.position, particle.mass, 0);
         }
-        //println!("{:?}", quadtree);
+        quadtree
+    }
 
-        let elapsed_time = start_time.elapsed();
-        println!("Quadtree initialization: {}ms", elapsed_time.as_millis());
-
-        let start_time = time::Instant::now();
-        let mut forces = vec![];
-        for particle in &self.particles {
-            let gravity = quadtree.calculate_gravity(particle.position, 0, 0.5, self.gravity_strength, self.softening_length);
-            let force = gravity * particle.mass;
-            forces.push(force);
-            //println!("{}", force);
-        }
-        let elapsed_time = start_time.elapsed();
-        println!("Force calculation: {}ms", elapsed_time.as_millis());
+    pub fn update(&mut self, delta_time: f64) {
+        let forces = self.calculate_forces_auto();
 
         for (particle, force) in iter::zip(&mut self.particles, forces) {
             particle.update(delta_time, force);
@@ -227,6 +264,15 @@ impl World {
             self.add_particle(particle.clone());
         }
     }
+}
+
+#[derive(Clone)]
+pub struct WorldSettings {
+    pub gravity_strength: f64,
+    pub softening_length: f64,
+    pub accuracy: f64,
+    pub quadtree: bool,
+    pub multiprocessing: bool,
 }
 
 #[derive(Debug)]
