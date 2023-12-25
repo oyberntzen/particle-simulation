@@ -85,7 +85,6 @@ impl World {
                 x: vector_to_center.y,
                 y: -vector_to_center.x,
             } * velocity;
-            //println!("{} {} {} {}", velocity, particle.position, vector_to_center, velocity_vector);
 
             start_velocities.push(velocity_vector);
         }
@@ -116,12 +115,16 @@ impl World {
     }
 
     fn calculate_forces_auto(&self) -> Vec<Vector2> {
-        match (self.settings.multiprocessing, self.settings.quadtree) {
+        let start_time = time::Instant::now();
+        let forces = match (self.settings.multiprocessing, self.settings.quadtree) {
             (false, false) => self.calculate_forces(),
             (true, false) => self.calculate_forces_multiprocessing(),
             (false, true) => self.calculate_forces_quadtree(),
             (true, true) => self.calculate_forces_multiprocessing_quadtree(),
-        }
+        };
+        let elapsed_time = start_time.elapsed();
+        println!("Total time: {}ms", elapsed_time.as_millis());
+        forces
     }
 
     fn calculate_forces(&self) -> Vec<Vector2> {
@@ -168,32 +171,39 @@ impl World {
 
     fn calculate_forces_quadtree(&self) -> Vec<Vector2> {
         let start_time = time::Instant::now();
-        let quadtree = self.construct_quadtree();
 
-        //println!("{:?}", quadtree);
+        let quadtree = self.construct_quadtree();
 
         let elapsed_time = start_time.elapsed();
         println!("Quadtree initialization: {}ms", elapsed_time.as_millis());
 
         let start_time = time::Instant::now();
+
         let mut forces = vec![];
         for particle in &self.particles {
-            let gravity = quadtree.calculate_gravity(particle.position, 0, 0.5, self.settings.gravity_strength, self.settings.softening_length);
+            let gravity = quadtree.calculate_gravity(particle.position, 0, &self.settings);
             let force = gravity * particle.mass;
             forces.push(force);
-            //println!("{}", force);
         }
+
         let elapsed_time = start_time.elapsed();
         println!("Force calculation: {}ms", elapsed_time.as_millis());
         forces
     }
 
     fn calculate_forces_multiprocessing_quadtree(&self) -> Vec<Vector2> {
+        let start_time = time::Instant::now();
+
         let num_threads = thread::available_parallelism().unwrap().get();
         let mut handles = vec![];
         let particles_per_thread = (self.particles.len() + num_threads - 1) / num_threads;
         let world = sync::Arc::new(self.clone());
         let quadtree = sync::Arc::new(self.construct_quadtree());
+        
+        let elapsed_time = start_time.elapsed();
+        println!("Quadtree initialization: {}ms", elapsed_time.as_millis());
+
+        let start_time = time::Instant::now();
         for i in 0..num_threads {
             let current_world = world.clone();
             let current_quadtree = quadtree.clone();
@@ -204,7 +214,7 @@ impl World {
                         break;
                     }
                     let particle = current_world.particles[j].clone();
-                    let gravity = current_quadtree.calculate_gravity(particle.position, 0, current_world.settings.accuracy, current_world.settings.gravity_strength, current_world.settings.softening_length);
+                    let gravity = current_quadtree.calculate_gravity(particle.position, 0, &current_world.settings);
                     let force = gravity * particle.mass;
                     forces.push(force);
                 }
@@ -219,6 +229,9 @@ impl World {
                 all_forces.push(force);
             }
         }
+
+        let elapsed_time = start_time.elapsed();
+        println!("Force calculation: {}ms", elapsed_time.as_millis());
         all_forces
     }
 
@@ -393,53 +406,36 @@ impl Quadtree {
         self.nodes[node].children = Some(children);
     }
 
-    fn calculate_gravity(&self, position: Vector2, node: usize, accuracy: f64, gravity_strength: f64, softening_length: f64) -> Vector2 {
+    fn calculate_gravity(&self, position: Vector2, node: usize, settings: &WorldSettings) -> Vector2 {
         let current_node = &self.nodes[node];
         let distance = (position - current_node.position).abs().sqrt();
         let width = current_node.max.x - current_node.min.x;
         let height = current_node.max.y - current_node.min.y;
         let size = width.max(height);
 
-        let far_away = size / distance < accuracy;
+        let far_away = size / distance < settings.accuracy;
         let has_children = current_node.children.is_some();
         let inside = current_node.inside(position);
-        //println!("{} {} {}", far_away, has_children, inside);
 
         if inside && !has_children {
             Vector2 {x: 0.0, y: 0.0}
         }
         else if (inside || !far_away) && has_children {
-            // searh children
+            // search children
             let mut gravity = Vector2 {x: 0.0, y:0.0};
             for i in 0..4 {
-                gravity += self.calculate_gravity(position, current_node.children.unwrap()[i], accuracy, gravity_strength, softening_length);
+                gravity += self.calculate_gravity(position, current_node.children.unwrap()[i], settings);
             }
             gravity
         }
         else {
-            /*if has_children {
-                println!("yey");
-            }*/
-
             let difference = current_node.position - position;
             let distance = difference.abs();
             let direction = difference / distance;
-            let magnitude = gravity_strength * current_node.mass
-                / (distance * distance + softening_length * softening_length);
+            let magnitude = settings.gravity_strength * current_node.mass
+                / (distance * distance + settings.softening_length * settings.softening_length);
             let gravity = direction * magnitude;
-            //println!("g: {}", gravity);
             gravity
         }
     }
-}
-
-pub fn test_quadtree() {
-    let mut quadtree = Quadtree::new(Vector2 { x: 0.0, y: 0.0 }, Vector2 { x: 1.0, y: 1.0 });
-
-    quadtree.insert(Vector2 { x: 0.2, y: 0.2 }, 1.0, 0);
-    quadtree.insert(Vector2 { x: 0.8, y: 0.8 }, 1.0, 0);
-    quadtree.insert(Vector2 { x: 0.2, y: 0.8 }, 1.0, 0);
-    quadtree.insert(Vector2 { x: 0.8, y: 0.2 }, 1.0, 0);
-    quadtree.insert(Vector2 { x: 0.2, y: 0.2 }, 1.0, 0);
-    println!("{:?}", quadtree);
 }

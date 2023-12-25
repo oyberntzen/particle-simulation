@@ -31,7 +31,8 @@ pub fn main() {
     world2.add_position(simulation::Vector2 { x: 1.0, y: 0.6 });
     world2.add_velocity(simulation::Vector2 { x: -0.2, y: 0.0 });
     world.add_world(&world2);
-     
+
+    println!("World initialization completed\n");
 
     let mut renderer = simulation::Renderer::new(1024, 1024);
     let camera = simulation::Camera {
@@ -43,8 +44,6 @@ pub fn main() {
     for i in 0..frames {
         world.update(1.0 / 30.0);
         renderer.render(&world, &camera, i);
-        println!("{}/{} frames completed", i + 1, frames)
+        println!("{}/{} frames completed\n", i + 1, frames)
     }
-    
-    //simulation::test_quadtree();
 }
