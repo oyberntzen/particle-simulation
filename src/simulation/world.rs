@@ -22,7 +22,7 @@ impl World {
         num_particles: u32,
         radius: f64,
         mass: f64,
-        color: (u8, u8, u8),
+        color: (f64,f64,f64),
     ) {
         let mut rng = rand::thread_rng();
         for _ in 0..num_particles {
@@ -50,7 +50,7 @@ impl World {
         self.set_circle_speed();
     }
 
-    pub fn new_galaxy(&mut self, num_particles: u32, radius: f64, mass: f64, color: (u8, u8, u8)) {
+    pub fn new_galaxy(&mut self, num_particles: u32, radius: f64, mass: f64, color: (f64,f64,f64)) {
         let mut rng = rand::thread_rng();
         for _ in 0..num_particles {
             let distance = (rng.gen::<f64>()).powi(2) * radius;

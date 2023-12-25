@@ -5,7 +5,7 @@ pub struct Particle {
     pub mass: f64,
     pub position: Vector2,
     pub velocity: Vector2,
-    pub color: (u8, u8, u8),
+    pub color: (f64, f64, f64),
 }
 
 impl Particle {

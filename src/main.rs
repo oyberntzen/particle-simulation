@@ -22,12 +22,12 @@ pub fn main() {
     };
     
     let mut world = simulation::World::new(settings.clone());
-    world.new_galaxy(250000, 1.0, 0.7, (255, 255, 0));
+    world.new_galaxy(250000, 1.0, 0.7, (1.0, 1.0, 0.0));
     world.add_position(simulation::Vector2 { x: -1.0, y: -0.6 });
     world.add_velocity(simulation::Vector2 { x: 0.2, y: 0.0 });
 
     let mut world2 = simulation::World::new(settings.clone());
-    world2.new_galaxy(250000, 1.0, 0.7, (255, 0, 255));
+    world2.new_galaxy(250000, 1.0, 0.7, (1.0, 0.0, 1.0));
     world2.add_position(simulation::Vector2 { x: 1.0, y: 0.6 });
     world2.add_velocity(simulation::Vector2 { x: -0.2, y: 0.0 });
     world.add_world(&world2);
@@ -38,6 +38,7 @@ pub fn main() {
     let camera = simulation::Camera {
         position: simulation::Vector2 { x: 0.0, y: 0.0 },
         zoom: -2.0,
+        brightness: 0.1,
     };
 
     let frames = 700;
