@@ -13,7 +13,7 @@ impl World {
     pub fn new(settings: WorldSettings) -> Self {
         Self {
             particles: vec![],
-            settings
+            settings,
         }
     }
 
@@ -22,7 +22,7 @@ impl World {
         num_particles: u32,
         radius: f64,
         mass: f64,
-        color: (f64,f64,f64),
+        color: (f64, f64, f64),
     ) {
         let mut rng = rand::thread_rng();
         for _ in 0..num_particles {
@@ -50,7 +50,13 @@ impl World {
         self.set_circle_speed();
     }
 
-    pub fn new_galaxy(&mut self, num_particles: u32, radius: f64, mass: f64, color: (f64,f64,f64)) {
+    pub fn new_galaxy(
+        &mut self,
+        num_particles: u32,
+        radius: f64,
+        mass: f64,
+        color: (f64, f64, f64),
+    ) {
         let mut rng = rand::thread_rng();
         for _ in 0..num_particles {
             let distance = (rng.gen::<f64>()).powi(2) * radius;
@@ -108,7 +114,8 @@ impl World {
             let distance = difference.abs();
             let direction = difference / distance;
             let magnitude = self.settings.gravity_strength * particle.mass
-                / (distance * distance + self.settings.softening_length * self.settings.softening_length);
+                / (distance * distance
+                    + self.settings.softening_length * self.settings.softening_length);
             gravity += direction * magnitude;
         }
         gravity
@@ -130,7 +137,7 @@ impl World {
     fn calculate_forces(&self) -> Vec<Vector2> {
         let mut forces = vec![];
         for particle in &self.particles {
-            let gravity = self.calculate_gravity(particle.position); 
+            let gravity = self.calculate_gravity(particle.position);
             let force = gravity * particle.mass;
             forces.push(force);
         }
@@ -199,7 +206,7 @@ impl World {
         let particles_per_thread = (self.particles.len() + num_threads - 1) / num_threads;
         let world = sync::Arc::new(self.clone());
         let quadtree = sync::Arc::new(self.construct_quadtree());
-        
+
         let elapsed_time = start_time.elapsed();
         println!("Quadtree initialization: {}ms", elapsed_time.as_millis());
 
@@ -214,7 +221,11 @@ impl World {
                         break;
                     }
                     let particle = current_world.particles[j].clone();
-                    let gravity = current_quadtree.calculate_gravity(particle.position, 0, &current_world.settings);
+                    let gravity = current_quadtree.calculate_gravity(
+                        particle.position,
+                        0,
+                        &current_world.settings,
+                    );
                     let force = gravity * particle.mass;
                     forces.push(force);
                 }
@@ -368,7 +379,7 @@ impl Quadtree {
             if self.nodes[node].mass > 0.0 {
                 if self.nodes[node].depth == 32 {
                     self.nodes[node].mass += mass;
-                    return
+                    return;
                 }
 
                 let temp_position = self.nodes[node].position;
@@ -401,12 +412,18 @@ impl Quadtree {
             } else {
                 min.y = (min.y + max.y) / 2.0;
             }
-            self.nodes.push(QuadtreeNode::new(min, max, self.nodes[node].depth+1));
+            self.nodes
+                .push(QuadtreeNode::new(min, max, self.nodes[node].depth + 1));
         }
         self.nodes[node].children = Some(children);
     }
 
-    fn calculate_gravity(&self, position: Vector2, node: usize, settings: &WorldSettings) -> Vector2 {
+    fn calculate_gravity(
+        &self,
+        position: Vector2,
+        node: usize,
+        settings: &WorldSettings,
+    ) -> Vector2 {
         let current_node = &self.nodes[node];
         let distance = (position - current_node.position).abs().sqrt();
         let width = current_node.max.x - current_node.min.x;
@@ -418,17 +435,16 @@ impl Quadtree {
         let inside = current_node.inside(position);
 
         if inside && !has_children {
-            Vector2 {x: 0.0, y: 0.0}
-        }
-        else if (inside || !far_away) && has_children {
+            Vector2 { x: 0.0, y: 0.0 }
+        } else if (inside || !far_away) && has_children {
             // search children
-            let mut gravity = Vector2 {x: 0.0, y:0.0};
+            let mut gravity = Vector2 { x: 0.0, y: 0.0 };
             for i in 0..4 {
-                gravity += self.calculate_gravity(position, current_node.children.unwrap()[i], settings);
+                gravity +=
+                    self.calculate_gravity(position, current_node.children.unwrap()[i], settings);
             }
             gravity
-        }
-        else {
+        } else {
             let difference = current_node.position - position;
             let distance = difference.abs();
             let direction = difference / distance;
