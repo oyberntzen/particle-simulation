@@ -25,7 +25,7 @@ impl Renderer {
         }
     }
 
-    pub fn render(&mut self, world: &World, camera: &Camera, frame: u32) {
+    pub fn render(&mut self, world: &World, camera: &Camera, filepath: &str) {
         self.img_buffer.fill(0);
         self.color_buffer.fill((0.0, 0.0, 0.0));
 
@@ -51,16 +51,19 @@ impl Renderer {
             for x in 0..self.width {
                 let i = (y * self.height + x) as usize;
 
-                let r = (self.color_buffer[i].0 * camera.brightness * 255.0) as u8;
+                /*let r = (self.color_buffer[i].0 * camera.brightness * 255.0) as u8;
                 let g = (self.color_buffer[i].1 * camera.brightness * 255.0) as u8;
-                let b = (self.color_buffer[i].2 * camera.brightness * 255.0) as u8;
+                let b = (self.color_buffer[i].2 * camera.brightness * 255.0) as u8;*/
+                let r = ((self.color_buffer[i].0 + 1.0).log2() * camera.brightness * 255.0) as u8;
+                let g = ((self.color_buffer[i].1 + 1.0).log2() * camera.brightness * 255.0) as u8;
+                let b = ((self.color_buffer[i].2 + 1.0).log2() * camera.brightness * 255.0) as u8;
                 self.img_buffer
                     .put_pixel(x, y, image::Rgb::<u8> { 0: [r, g, b] });
             }
         }
 
         self.img_buffer
-            .save(format!("result/frames/{:05}.png", frame))
+            .save(filepath)
             .unwrap();
     }
 

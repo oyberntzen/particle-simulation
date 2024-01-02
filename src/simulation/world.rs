@@ -2,6 +2,8 @@ use rand::Rng;
 
 use super::*;
 use std::{iter, sync, thread, time, vec};
+use std::io::Write; 
+use std::fs;
 
 #[derive(Clone)]
 pub struct World {
@@ -76,7 +78,7 @@ impl World {
         self.set_circle_speed();
     }
 
-    fn set_circle_speed(&mut self) {
+    pub fn set_circle_speed(&mut self) {
         let forces = self.calculate_forces_auto();
         let mut start_velocities: Vec<Vector2> = vec![];
         for (particle, force) in iter::zip(&self.particles, forces) {
@@ -104,7 +106,7 @@ impl World {
         self.particles.push(particle);
     }
 
-    fn calculate_gravity(&self, position: Vector2) -> Vector2 {
+    pub fn calculate_gravity(&self, position: Vector2) -> Vector2 {
         let mut gravity = Vector2 { x: 0.0, y: 0.0 };
         for particle in &self.particles {
             if particle.position.x == position.x && particle.position.y == position.y {
@@ -287,6 +289,18 @@ impl World {
         for particle in &other.particles {
             self.add_particle(particle.clone());
         }
+    }
+
+    pub fn set_color(&mut self, color: (f64, f64, f64)) {
+        for particle in &mut self.particles {
+            particle.color = color;
+        }
+    }
+
+    pub fn save_to_file(&self, path: &str) {
+        let encoded = bincode::serialize(&self.particles).unwrap();
+        let mut file = fs::OpenOptions::new().write(true).open(path).unwrap();
+        let _ = file.write_all(&encoded);
     }
 }
 

@@ -1,6 +1,8 @@
 use std::{fmt, ops};
 
-#[derive(Clone, Copy, Debug)]
+use serde::{Serialize, Deserialize};
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Vector2 {
     pub x: f64,
     pub y: f64,

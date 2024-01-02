@@ -1,6 +1,7 @@
 use super::*;
+use serde::{Serialize, Deserialize};
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Particle {
     pub mass: f64,
     pub position: Vector2,
