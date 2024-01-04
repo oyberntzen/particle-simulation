@@ -98,10 +98,10 @@ pub fn main() {
         sigma0/(4.0*zd)*(-rm/r-r/rd).exp()*(2.0/(x.exp()+(-x).exp())).powi(2)
     };
 
-    let r_max = 50.0;
-    let z_max = 10.0;
-    let steps_r = 20000;
-    let steps_z = 1000;
+    let r_max = 25.0;
+    let z_max = 0.5;
+    let steps_r = 1000;
+    let steps_z = 100;
 
     let bulge_mass = simulation::distrobution_mass(bulge_density, r_max, z_max, steps_r, steps_z);
     let thin_disc_mass = simulation::distrobution_mass(thin_disc_density, r_max, z_max, steps_r, steps_z);
@@ -112,26 +112,26 @@ pub fn main() {
     let total_mass = bulge_mass + thin_disc_mass + thick_disc_mass + gas_disc1_mass + gas_disc2_mass;
     println!("Total mass: {}", total_mass);
 
-    let total_particles = 500000;
+    let total_particles = 100000;
     let bulge_particles = (bulge_mass / total_mass * total_particles as f64) as u32;
     let thin_disc_particles = (thin_disc_mass / total_mass * total_particles as f64) as u32;
     let thick_disc_particles = (thick_disc_mass / total_mass * total_particles as f64) as u32;
     let gas_disc1_particles = (gas_disc1_mass / total_mass * total_particles as f64) as u32;
     let gas_disc2_particles = (gas_disc2_mass / total_mass * total_particles as f64) as u32;
 
-    let mut bulge_world = simulation::from_distrobution(bulge_density, bulge_particles, 25.0, 10.0, 10000, 1000);
+    let mut bulge_world = simulation::from_distrobution(bulge_density, bulge_particles, r_max, z_max, steps_r, steps_z);
     println!("{}", bulge_world.particles.len());
 
-    let mut thin_disc_world = simulation::from_distrobution(thin_disc_density, thin_disc_particles, 25.0, 10.0, 10000, 1000);
+    let mut thin_disc_world = simulation::from_distrobution(thin_disc_density, thin_disc_particles, r_max, z_max, steps_r, steps_z);
     println!("{}", thin_disc_world.particles.len());
 
-    let mut thick_disc_world = simulation::from_distrobution(thick_disc_density, thick_disc_particles, 25.0, 10.0, 10000, 1000);
+    let mut thick_disc_world = simulation::from_distrobution(thick_disc_density, thick_disc_particles, r_max, z_max, steps_r, steps_z);
     println!("{}", thick_disc_world.particles.len());
 
-    let mut gas_disc1_world = simulation::from_distrobution(gas_disc1_density, gas_disc1_particles, 50.0, 10.0, 10000, 1000);
+    let mut gas_disc1_world = simulation::from_distrobution(gas_disc1_density, gas_disc1_particles, r_max, z_max, steps_r, steps_z);
     println!("{}", gas_disc1_world.particles.len());
 
-    let mut gas_disc2_world = simulation::from_distrobution(gas_disc2_density, gas_disc2_particles, 25.0, 10.0, 10000, 1000);
+    let mut gas_disc2_world = simulation::from_distrobution(gas_disc2_density, gas_disc2_particles, r_max, z_max, steps_r, steps_z);
     println!("{}", gas_disc2_world.particles.len());
 
     let settings = simulation::WorldSettings {
@@ -147,7 +147,7 @@ pub fn main() {
     let camera = simulation::Camera {
         position: simulation::Vector2 { x: 0.0, y: 0.0 },
         zoom: -5.0,
-        brightness: 0.2,
+        brightness: 0.3,
     };
     renderer.render(&bulge_world, &camera, "./result/tests/bulge.png");
     renderer.render(&thin_disc_world, &camera, "./result/tests/thin_disk.png");
@@ -161,12 +161,21 @@ pub fn main() {
     gas_disc1_world.set_color((0.0, 0.0, 1.0));
     gas_disc2_world.set_color((0.0, 0.0, 1.0));
 
+    let sagittarius = simulation::Particle {
+        mass: 4.297e6,
+        position: simulation::Vector2{x: 0.00001, y: 0.00001},
+        velocity: simulation::Vector2{x: 0.0, y: 0.0},
+        color: (1.0, 1.0, 1.0),
+    };
+
     let mut milky_way = simulation::World::new(settings);
     milky_way.add_world(&bulge_world);
     milky_way.add_world(&thick_disc_world);
     milky_way.add_world(&thick_disc_world);
     milky_way.add_world(&gas_disc1_world);
     milky_way.add_world(&gas_disc2_world);
+    milky_way.add_particle(sagittarius);
+
 
     let sun_position = simulation::Vector2{x: 8.21, y: 0.0};
     let sun_gravity = milky_way.calculate_gravity(sun_position);
@@ -180,14 +189,15 @@ pub fn main() {
     milky_way.set_circle_speed();
     let frames = 1000000;
     for i in 0..frames {
-        milky_way.update(dt);
+        milky_way.update(1.0);
         renderer.render(&milky_way, &camera, format!("./result/frames/{:05}.png", i).as_str());
         println!("{}/{} frames completed", i + 1, frames);
 
-        if i % 100 == 0 {
+        /*if i % 100 == 0 {
             println!("Saving particles");
             milky_way.save_to_file(format!("./result/particles/particles{:05}", i).as_str());
-        }
+        }*/
+        println!("{}", milky_way.particles[milky_way.particles.len()-1].position);
         println!();
     }
 }

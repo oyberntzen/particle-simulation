@@ -95,4 +95,4 @@ Cargo.lock
 
 result/*.mp4
 result/frames/*
-result/test/*
+result/tests/*

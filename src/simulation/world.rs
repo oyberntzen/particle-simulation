@@ -83,6 +83,8 @@ impl World {
         let mut start_velocities: Vec<Vector2> = vec![];
         for (particle, force) in iter::zip(&self.particles, forces) {
             if particle.position.x == 0.0 && particle.position.y == 0.0 {
+                //println!("KULT");
+                start_velocities.push(Vector2 { x: 0.0, y: 0.0 });
                 continue;
             }
             let acceleration = force / particle.mass;
@@ -99,6 +101,7 @@ impl World {
 
         for (particle, velocity) in iter::zip(&mut self.particles, start_velocities) {
             particle.velocity = velocity;
+            //println!("{}", particle.velocity)
         }
     }
 
@@ -268,8 +271,12 @@ impl World {
     pub fn update(&mut self, delta_time: f64) {
         let forces = self.calculate_forces_auto();
 
+        let mut i = 0;
         for (particle, force) in iter::zip(&mut self.particles, forces) {
+            //println!("{}: {}", i, particle.position);
             particle.update(delta_time, force);
+            //println!("{}: {}", i, particle.position);
+            i += 1;
         }
     }
 
