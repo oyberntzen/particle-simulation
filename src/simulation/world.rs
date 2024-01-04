@@ -2,7 +2,7 @@ use rand::Rng;
 
 use super::*;
 use std::{iter, sync, thread, time, vec};
-use std::io::Write; 
+use std::io::{Write, Read}; 
 use std::fs;
 
 #[derive(Clone)]
@@ -49,7 +49,7 @@ impl World {
             color,
         });
 
-        self.set_circle_speed();
+        self.set_circle_speed(false);
     }
 
     pub fn new_galaxy(
@@ -75,10 +75,10 @@ impl World {
             });
         }
 
-        self.set_circle_speed();
+        self.set_circle_speed(false);
     }
 
-    pub fn set_circle_speed(&mut self) {
+    pub fn set_circle_speed(&mut self, softening: bool) {
         let forces = self.calculate_forces_auto();
         let mut start_velocities: Vec<Vector2> = vec![];
         for (particle, force) in iter::zip(&self.particles, forces) {
@@ -88,9 +88,16 @@ impl World {
                 continue;
             }
             let acceleration = force / particle.mass;
-            let velocity = (acceleration.abs() * particle.position.abs()).sqrt();
-
+            let mut velocity = (acceleration.abs() * particle.position.abs()).sqrt();
             let vector_to_center = (-particle.position) / particle.position.abs();
+
+            if softening {
+                let distance = particle.position.abs();
+                let a = 0.4;
+                let proportion = distance / (distance + a);
+                velocity *= proportion;
+            }
+
             let velocity_vector = Vector2 {
                 x: vector_to_center.y,
                 y: -vector_to_center.x,
@@ -306,8 +313,15 @@ impl World {
 
     pub fn save_to_file(&self, path: &str) {
         let encoded = bincode::serialize(&self.particles).unwrap();
-        let mut file = fs::OpenOptions::new().write(true).open(path).unwrap();
-        let _ = file.write_all(&encoded);
+        let mut file = fs::OpenOptions::new().write(true).create(true).open(path).unwrap();
+        file.write_all(&encoded).unwrap();
+    }
+
+    pub fn load_from_file(&mut self, path: &str) {
+        let mut file = fs::OpenOptions::new().read(true).open(path).unwrap();
+        let mut encoded = vec![];
+        let _ = file.read_to_end(&mut encoded).unwrap();
+        self.particles = bincode::deserialize(&encoded).unwrap();
     }
 }
 

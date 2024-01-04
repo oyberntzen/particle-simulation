@@ -3,6 +3,8 @@ use std::f64::consts::PI;
 
 use simulation::renderer;
 
+use crate::simulation::World;
+
 pub fn main() {
     /*let mut world = simulation::World::new();
     world.add_particle(simulation::Particle {
@@ -50,6 +52,7 @@ pub fn main() {
         renderer.render(&world, &camera, i);
         println!("{}/{} frames completed\n", i + 1, frames)
     }*/
+
 
     let bulge_density = |r: f64, z: f64| {
         let a = 1.8;
@@ -135,7 +138,7 @@ pub fn main() {
     println!("{}", gas_disc2_world.particles.len());
 
     let settings = simulation::WorldSettings {
-        gravity_strength: 1.30128e-11, //1e20 aar
+        gravity_strength: 1.30128e-12, //1e20 aar
         softening_length: 0.1,
         accuracy: 0.5,
         quadtree: true,
@@ -168,7 +171,7 @@ pub fn main() {
         color: (1.0, 1.0, 1.0),
     };
 
-    let mut milky_way = simulation::World::new(settings);
+    let mut milky_way = simulation::World::new(settings.clone());
     milky_way.add_world(&bulge_world);
     milky_way.add_world(&thick_disc_world);
     milky_way.add_world(&thick_disc_world);
@@ -186,17 +189,23 @@ pub fn main() {
 
     renderer.render(&milky_way, &camera, "./result/tests/milky_way.png");
 
-    milky_way.set_circle_speed();
+    milky_way.set_circle_speed(true);
+    milky_way.save_to_file("./result/tests/milkyway.bin");
+
+    /*let mut milky_way2 = World::new(settings);
+    milky_way2.load_from_file("./result/tests/milkyway.bin");
+    milky_way = milky_way2;*/
+
     let frames = 1000000;
     for i in 0..frames {
         milky_way.update(1.0);
         renderer.render(&milky_way, &camera, format!("./result/frames/{:05}.png", i).as_str());
         println!("{}/{} frames completed", i + 1, frames);
 
-        /*if i % 100 == 0 {
+        if i % 100 == 0 {
             println!("Saving particles");
-            milky_way.save_to_file(format!("./result/particles/particles{:05}", i).as_str());
-        }*/
+            milky_way.save_to_file(format!("./result/particles/particles{:05}.bin", i).as_str());
+        }
         println!("{}", milky_way.particles[milky_way.particles.len()-1].position);
         println!();
     }
