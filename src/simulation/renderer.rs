@@ -40,7 +40,7 @@ impl Renderer {
             }
             let x = screen_pos.x as usize;
             let y = screen_pos.y as usize;
-            let i = y * (self.height as usize) + x;
+            let i = y * (self.width as usize) + x;
 
             self.color_buffer[i].0 += particle.color.0;
             self.color_buffer[i].1 += particle.color.1;
@@ -49,7 +49,7 @@ impl Renderer {
 
         for y in 0..self.height {
             for x in 0..self.width {
-                let i = (y * self.height + x) as usize;
+                let i = (y * self.width + x) as usize;
 
                 /*let r = (self.color_buffer[i].0 * camera.brightness * 255.0) as u8;
                 let g = (self.color_buffer[i].1 * camera.brightness * 255.0) as u8;
